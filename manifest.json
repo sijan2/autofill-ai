@@ -1,0 +1,24 @@
+{
+  "manifest_version": 3,
+  "version": "1.0",
+  "name": "sync",
+  "description": "An Ai based auto otp filler",
+  "background": {
+    "service_worker": "src/background.ts"
+  },
+  "permissions": ["identity", "tabs", "storage", "webRequest"],
+  "host_permissions": ["<all_urls>", "wss://*/*"],
+  "action": {
+    "default_popup": "src/popup/index.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["src/content/content.tsx"]
+    }
+  ],
+  "icons": {
+    "16": "public/icon/icon_16.png",
+    "48": "public/icon/icon_48.png"
+  }
+}
