@@ -9,9 +9,13 @@ This Chrome extension automates OTP filling and verification link handling using
 - **Popup notifications** for OTPs and verification links.
 - **Automatic verification link handling**, opens links in new tabs.
 
-### Demo Preview:
 
-[![Demo Video]](./preview/preview.mp4)
+
+
+### Demo Preview:
+https://github.com/user-attachments/assets/5ef13a08-733a-4235-b467-5e87eb2d42b7
+
+
 
 ### Installation:
 
