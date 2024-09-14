@@ -1,3 +1,5 @@
+// background.ts
+
 import supabase from './lib/supabase'
 
 interface SessionData {
@@ -8,6 +10,8 @@ interface SessionData {
 interface Message {
   action: string
   data: any
+  timestamp: number
+  retryCount?: number
 }
 
 let socket: WebSocket | null = null
@@ -17,9 +21,8 @@ const RECONNECT_DELAY = 5000 // 5 seconds
 const KEEP_ALIVE_INTERVAL = 30000 // 30 seconds
 
 let messageQueue: Message[] = []
-let isContentScriptReady = false
-
-let contentScriptReady = false
+const contentScriptReadyTabs = new Set<number>()
+const MAX_RETRY_COUNT = 5
 
 function connectWebSocket(): void {
   if (
@@ -37,17 +40,29 @@ function connectWebSocket(): void {
     reconnectAttempts = 0
   }
 
+  let lastOTPTime = 0
+  const OTP_THROTTLE_INTERVAL = 2000 // 2 seconds
+
   socket.onmessage = (event: MessageEvent): void => {
     console.log('Received raw message:', event.data)
     try {
-      const data: any = JSON.parse(event.data)
-      console.log('Parsed message:', data)
-      if (data.historyId) {
-        console.log('Queueing OTP message:', data.historyId)
-        queueMessage({
-          action: 'showOTP',
-          data: { otp: data.historyId.toString() },
-        })
+      const now = Date.now()
+      if (now - lastOTPTime >= OTP_THROTTLE_INTERVAL) {
+        lastOTPTime = now
+        const data: any = JSON.parse(event.data)
+        console.log('Parsed message:', data)
+        if (data.historyId) {
+          console.log('Queueing OTP message:', data.historyId)
+          queueMessage({
+            action: 'showOTP',
+            data: { otp: data.historyId.toString() },
+            timestamp: Date.now(),
+          })
+        } else {
+          console.warn('Received message with missing historyId:', data)
+        }
+      } else {
+        console.log('Throttling OTP message to prevent overload.')
       }
     } catch (error) {
       console.error('Error parsing WebSocket message:', error)
@@ -61,16 +76,16 @@ function connectWebSocket(): void {
 
   socket.onerror = (error: Event): void => {
     console.error('WebSocket error:', error)
+    handleReconnection()
   }
 }
 
 function handleReconnection(): void {
   if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+    const delay = RECONNECT_DELAY * Math.pow(2, reconnectAttempts)
     reconnectAttempts++
-    console.log(
-      `Attempting to reconnect (${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})...`
-    )
-    setTimeout(connectWebSocket, RECONNECT_DELAY)
+    console.log(`Reconnecting in ${delay / 1000} seconds...`)
+    setTimeout(connectWebSocket, delay)
   } else {
     console.error(
       'Max reconnection attempts reached. Please check your connection and reload the extension.'
@@ -79,17 +94,36 @@ function handleReconnection(): void {
 }
 
 function queueMessage(message: Message): void {
+  message.timestamp = Date.now()
   messageQueue.push(message)
   console.log('Message queued:', message)
   processMessageQueue()
 }
 
+function notifyUser(message: string): void {
+  chrome.notifications.create({
+    type: 'basic',
+    iconUrl: 'icon.png', // Replace with a valid icon URL or path
+    title: 'Notification',
+    message: message,
+  })
+}
+
 function processMessageQueue(): void {
   console.log('Processing message queue. Queue length:', messageQueue.length)
-  console.log('Content script ready:', contentScriptReady)
+  console.log(
+    'Content scripts ready in tabs:',
+    Array.from(contentScriptReadyTabs)
+  )
 
-  if (!contentScriptReady) {
-    console.log('Content script not ready. Waiting...')
+  if (contentScriptReadyTabs.size === 0) {
+    console.log('No content scripts are ready. Notifying user.')
+    while (messageQueue.length > 0) {
+      const message = messageQueue.shift()
+      if (message && message.action === 'showOTP') {
+        notifyUser(`OTP Received: ${message.data.otp}`)
+      }
+    }
     return
   }
 
@@ -102,33 +136,44 @@ function processMessageQueue(): void {
 }
 
 function sendMessageToContentScript(message: Message): void {
-  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-    const activeTab = tabs[0]
-    if (activeTab?.id) {
-      console.log('Sending message to content script:', message)
-      chrome.tabs.sendMessage(activeTab.id, message, (response) => {
-        if (chrome.runtime.lastError) {
-          console.log(
-            'Error sending message:',
-            chrome.runtime.lastError.message
-          )
+  contentScriptReadyTabs.forEach((tabId) => {
+    console.log('Sending message to content script in tab', tabId)
+    chrome.tabs.sendMessage(tabId, message, (response) => {
+      if (chrome.runtime.lastError) {
+        console.error(
+          `Error sending message to tab ${tabId}:`,
+          chrome.runtime.lastError.message
+        )
+        // Remove the tab from the set if there's an error
+        contentScriptReadyTabs.delete(tabId)
+        // Increment retry count
+        message.retryCount = (message.retryCount || 0) + 1
+        if (message.retryCount < MAX_RETRY_COUNT) {
           messageQueue.unshift(message)
-          contentScriptReady = false
         } else {
-          console.log('Message sent successfully')
+          console.error('Max retry attempts reached for message:', message)
         }
-      })
-    } else {
-      console.log('No active tab found')
-    }
+      } else {
+        console.log(`Message sent successfully to tab ${tabId}`)
+      }
+    })
   })
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === 'contentScriptReady') {
-    console.log('Content script is ready')
-    contentScriptReady = true
-    processMessageQueue()
+    if (sender.tab?.id != null) {
+      contentScriptReadyTabs.add(sender.tab.id)
+      console.log(`Content script ready in tab ${sender.tab.id}`)
+      processMessageQueue()
+    }
+  }
+})
+
+chrome.tabs.onRemoved.addListener((tabId, removeInfo) => {
+  if (contentScriptReadyTabs.has(tabId)) {
+    contentScriptReadyTabs.delete(tabId)
+    console.log(`Tab ${tabId} closed. Removed from ready tabs.`)
   }
 })
 
@@ -141,14 +186,6 @@ function keepAlive(): void {
 setInterval(keepAlive, KEEP_ALIVE_INTERVAL)
 
 connectWebSocket()
-
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.action === 'contentScriptReady') {
-    console.log('Content script is ready')
-    isContentScriptReady = true
-    processMessageQueue()
-  }
-})
 
 chrome.tabs.onUpdated.addListener(
   (
@@ -199,6 +236,7 @@ async function finishUserOAuth(url: string, tabId: number): Promise<void> {
     console.log(`Finished handling user OAuth callback`)
   } catch (error) {
     console.error('Error in finishUserOAuth:', error)
+    notifyUser('Authentication failed. Please try again.')
   }
 }
 

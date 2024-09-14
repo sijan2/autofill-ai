@@ -1,37 +1,28 @@
-# sync
+# AI-Based OTP Autofill Chrome Extension
 
-> This project was bootstrapped using the Extension.js React-TypeScript template.
+This Chrome extension automates OTP filling and verification link handling using AI and Google Pub/Sub. It detects new emails in real-time, extracts OTPs or verification links, and helps fill forms or open verification links in new tabs automatically.
 
-## Scripts Available
+### Key Features:
 
-In the project directory, you can run:
+- **Real-time email notifications** via Google Pub/Sub.
+- **AI-based OTP extraction** and autofill.
+- **Popup notifications** for OTPs and verification links.
+- **Automatic verification link handling**, opens links in new tabs.
 
-### npm dev
+### Demo Preview:
 
-```
-// Runs the app in the development mode.
-// Will open a new browser instance with your extension loaded.
-// The page will reload when you make changes.
-npm dev
-```
+[![Demo Video]](./preview/preview.mp4)
 
-### npm start
+### Installation:
 
-```
-// Runs the app in the production mode.
-// Will open a new browser instance with your extension loaded.
-// This is how your browser extension will work once published.
-npm start
-```
+1. Clone the repo: `git clone https://github.com/sijan2/autofill-ai.git`
+2. Load the extension in Chrome: Go to `chrome://extensions/`, enable "Developer mode," and select "Load unpacked."
+3. Configure Google Pub/Sub with Gmail notifications.
 
-### npm build
+### How It Works:
 
-```
-// Builds the app for production.
-// Bundles your browser extension in production mode for the target browser.
-npm run build
-```
+- On receiving a new email, the extension scans for OTPs or verification links and either autofills or provides popup notifications for easy interaction.
 
-## Learn More
+---
 
-You can learn more in the [Extension.js](https://extension.js.org) documentation.
+For more details, check out the full demo in the `preview/preview.mp4`.
