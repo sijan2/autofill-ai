@@ -19,7 +19,7 @@ https://github.com/user-attachments/assets/5ef13a08-733a-4235-b467-5e87eb2d42b7
 
    ### ---> client side
 
-5. **Email Retrieval & AI Processing**: The extension pulls the new email content, then sends it to an AI model (Gemini/GOT) to extract OTPs or verification links.
+5. **Email Retrieval & AI Processing**: The extension pulls the new email content, then sends it to an AI model (Gemini/OpenAI) to extract OTPs or verification links.
 
 6. **Popup & Autofill**: The extracted OTP or link is displayed in a popup. OTPs are automatically filled, and verification links can be opened in a new tab.
 
