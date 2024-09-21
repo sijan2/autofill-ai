@@ -5,7 +5,14 @@ This Chrome extension automates OTP filling and verification link handling using
 
 
 ### Demo Preview:
-https://github.com/user-attachments/assets/5ef13a08-733a-4235-b467-5e87eb2d42b7
+https://github.com/user-attachments/assets/d3d72a52-01fd-41b3-9e93-e673e920fc27
+
+
+
+
+
+
+
 
 
 
