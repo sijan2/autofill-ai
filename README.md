@@ -1,10 +1,11 @@
 # AI-Based OTP Autofill Chrome Extension
 
+
 This Chrome extension automates OTP filling and verification link handling using AI and Google Pub/Sub. It detects new otp/verifications related email, extracts OTPs or verification links, and open verification links in new tabs automatically.
 
 
 
-### Demo Preview:
+# Please Watch this Demo Preview:
 https://github.com/user-attachments/assets/d3d72a52-01fd-41b3-9e93-e673e920fc27
 
 
